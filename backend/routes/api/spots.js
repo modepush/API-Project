@@ -4,7 +4,7 @@ const {Spot, User, SpotImage, Review, sequelize, ReviewImage} = require('../../d
 const { requireAuth } = require('../../utils/auth');
 const { Op } = require('sequelize');
 const { check } = require('express-validator');
-const { handleValidationErrors1, handleValidationErrors2 } = require('../../utils/validation1');
+const { handleValidationErrors1, handleValidationErrors2, handleValidationErrors3 } = require('../../utils/validation1');
 
 const validateSignup = [
     check('address')
@@ -42,7 +42,18 @@ const validateSignup = [
     check('id')
         .exists({ checkFalsy: true }),
     handleValidationErrors2
-  ]
+  ];
+
+  const validatesReview = [
+    check('review')
+        .exists({ checkFalsy: true })
+        .isString()
+        .withMessage('Review text is required'),
+    check('stars')
+        .isInt({min: 1, max: 5})
+        .withMessage('Stars must be an integer from 1 to 5'),
+    handleValidationErrors3
+  ];
 
 
 router.get('/:spotId/reviews', validatesSpot, async (req, res) => {
@@ -243,6 +254,44 @@ for (let i = 0; i < getSpots.length; i++) {
 
 
     return res.status(200).json({Spots:payload})
+});
+
+
+router.post('/:spotId/reviews', requireAuth, async (req, res) => {
+    const {user} = req
+    const getSpot = await Spot.findByPk(req.params.spotId);
+    const {review,stars} = req.body;
+
+    if (!getSpot) {
+        return res.status(404).json({
+            message: "Spot couldn't be found",
+            statusCode: 404
+        })
+    }
+
+    const newReview = await Review.create({
+        spotId: getSpot.id,
+        userId: user.id,
+        review,
+        stars
+    });
+
+    const reviewExists = await Review.findOne({
+        where: {
+            id: {
+                [Op.eq]: newReview.id
+            }
+        }
+    });
+
+    if (reviewExists) {
+        return res.status(403).json({
+            message: "User already has a review for this spot",
+            statusCode: 403
+        });
+    }
+
+    res.status(201).json(newReview)
 });
 
 router.post('/:spotId/images', [requireAuth, validatesSpot], async (req, res) => {
