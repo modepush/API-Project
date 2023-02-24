@@ -26,6 +26,14 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'ReviewImage',
+    scopes: {
+      removeCAUA: {
+        attributes: { exclude: ["createdAt", "updatedAt"] }
+      },
+      removeAnId: {
+        attributes: { exclude: ['reviewId'] }
+      }
+    }
   });
   return ReviewImage;
 };

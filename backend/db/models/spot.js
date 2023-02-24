@@ -58,6 +58,14 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'Spot',
+    scopes: {
+      removeCAUA: {
+        attributes: { exclude: ["createdAt", "updatedAt"] }
+      },
+      removeDescription: {
+        attributes: { exclude: ['description'] }
+      }
+    }
   });
   return Spot;
 };
