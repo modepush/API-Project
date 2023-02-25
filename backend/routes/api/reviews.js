@@ -26,10 +26,10 @@ const validatesReview = [
   ]
 
 router.get('/current', requireAuth, async (req, res) => {
-    const {user} = req
-    const reviewUser = await Review.findAll({
+    const {user} = req;
+    const getReviews = await Review.findAll({
         include: [
-            {model: User.scope('defaultScope','username')},
+            {model: User.scope('defaultScope', 'username')},
             {model: Spot.scope('removeCAUA', 'removeDescription')},
             {model: ReviewImage.scope('removeCAUA', 'removeAnId')}
         ],
@@ -41,55 +41,32 @@ router.get('/current', requireAuth, async (req, res) => {
     });
 
     const payload = [];
+    getReviews.forEach(obj => {
+        payload.push(obj.toJSON())
+    });
 
-    for (let i = 0; i < reviewUser.length; i++) {
-        let ele = reviewUser[i];
+    for (let i = 0; i < payload.length; i++) {
+        const obj = payload[i];
 
-        const newObj = {
-            id: ele.id,
-            spotId: ele.spotId,
-            userId: ele.userId,
-            review: ele.review,
-            stars: ele.stars,
-            createdAt: ele.createdAt,
-            updatedAt: ele.updatedAt,
-            User: {
-                id: ele.User.id,
-                firstName: ele.User.firstName,
-                lastName: ele.User.lastName
-            },
-            Spot: {
-                id: ele.Spot.id,
-                ownerId: ele.Spot.ownerId,
-                address: ele.Spot.address,
-                city: ele.Spot.city,
-                state: ele.Spot.state,
-                country: ele.Spot.country,
-                lat: ele.Spot.lat,
-                lng: ele.Spot.lng,
-                name: ele.Spot.name,
-                price: ele.Spot.price,
-                previewImage: null
-            },
-            ReviewImages: []
-        }
-        const url = await ReviewImage.scope('removeCAUA', 'removeAnId').findAll({
+        const img = await SpotImage.findAll({
             where: {
-                reviewId: {
-                    [Op.eq]: newObj.id
-                }
+                spotId: {
+                    [Op.eq]: obj.id
+                },
+                preview: true
             }
-        })
-        for (let j = 0; j < url.length; j++) {
-            const img = url[j];
-            newObj.Spot.previewImage = img.url
-            newObj.ReviewImages.push(img)
+        });
+
+        img.forEach(ele => {
+            obj.Spot.previewImage = ele.url
+        });
+
+        if (!obj.Spot.previewImage) {
+            obj.Spot.previewImage = "Preview Image N/A"
         }
-
-        payload.push({Reviews:newObj})
     }
-    res.json(payload)
 
+    res.json({Reviews:payload})
 });
 
 
@@ -189,17 +166,22 @@ router.delete('/:reviewId', requireAuth, async (req, res) => {
     const findReview = await Review.findByPk(req.params.reviewId);
 
     if (findReview) {
+        await findReview.destroy()
         res.status(200).json({
             message: "Successfully deleted",
             statusCode: 200
         })
     } else {
+        const err = new Error("Review couldn't be found")
+        err.status = 404
         res.status(404).json({
-            message: "Review couldn't be found",
-            statusCode: 404
-        })
+            message: err.message,
+            statusCode: err.status
+        });
     }
 })
+
+
 
 
 module.exports = router;
